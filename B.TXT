@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microservice Health Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2043de 0%, #4d36e8 50%, #1d03c6 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            background: rgba(242, 242, 246, 0.97);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5);
+            animation: slideDown 0.6s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .action-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .primary-btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1em;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #38bdf8 0%, #6366f1 100%);
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.5);
+        }
+
+        .primary-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .refresh-btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1em;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .refresh-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.5);
+        }
+
+        .refresh-btn:active:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .refresh-btn .spinner-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #1a1a2e;
+            font-size: 2.8em;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-icon {
+            font-size: 3em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .header p {
+            color: #6b7280;
+            font-size: 1.15em;
+            font-weight: 400;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.7;
+                transform: scale(1.2);
+            }
+        }
+
+        .auto-refresh {
+            color: #6b7280;
+            font-size: 0.95em;
+            font-weight: 500;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.6s ease-out backwards;
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card:nth-child(2) { animation-delay: 0.2s; }
+        .stat-card:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, currentColor, transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-card.total {
+            border-left: 5px solid #667eea;
+            color: #667eea;
+        }
+
+        .stat-card.up {
+            border-left: 5px solid #10b981;
+            color: #10b981;
+        }
+
+        .stat-card.down {
+            border-left: 5px solid #ef4444;
+            color: #ef4444;
+        }
+
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stat-card-icon {
+            font-size: 2.5em;
+            opacity: 0.8;
+        }
+
+        .stat-card h3 {
+            color: #6b7280;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 3.5em;
+            font-weight: 800;
+            color: #1a1a2e;
+            line-height: 1;
+            background: linear-gradient(135deg, currentColor 0%, currentColor 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .services-table {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .services-table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .services-table h2 {
+            color: #1a1a2e;
+            margin-bottom: 0;
+            font-size: 2em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th {
+            padding: 18px 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: none;
+        }
+
+        th:first-child {
+            border-top-left-radius: 16px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 16px;
+        }
+
+        tbody tr {
+            transition: all 0.3s ease;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            transform: scale(1.01);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        td {
+            padding: 20px;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .service-name {
+            font-weight: 700;
+            color: #1a1a2e;
+            font-size: 1.05em;
+        }
+
+        .service-url {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .service-url:hover {
+            color: #764ba2;
+            transform: translateX(3px);
+        }
+
+        .service-url i {
+            font-size: 0.8em;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-badge::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .status-badge:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .status-badge.up {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+            animation: pulse-up 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-up {
+            0%, 100% { box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 4px 25px rgba(16, 185, 129, 0.6); }
+        }
+
+        .status-badge.down {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+            animation: pulse-down 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-down {
+            0%, 100% { box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 4px 30px rgba(239, 68, 68, 0.7); }
+        }
+
+        .status-badge.unknown {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+        }
+
+        .status-icon {
+            font-size: 0.9em;
+        }
+
+        .response-time {
+            font-family: 'Courier New', monospace;
+            color: #6b7280;
+            font-weight: 600;
+            background: #f3f4f6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .error-message {
+            color: #ef4444;
+            max-width: 300px;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            font-weight: 500;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 3px solid #ef4444;
+        }
+
+        .footer {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .footer p {
+            font-size: 1em;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .refresh-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 15px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .stat-card .value {
+                font-size: 2.5em;
+            }
+            
+            .services-table {
+                padding: 20px;
+            }
+            
+            table {
+                font-size: 0.9em;
+            }
+            
+            th, td {
+                padding: 12px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .alert {
+            padding: 16px 20px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            font-weight: 600;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #7f1d1d;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: rgba(248, 250, 252, 0.98);
+            border-radius: 24px;
+            padding: 35px;
+            width: min(500px, 90%);
+            box-shadow: 0 40px 80px rgba(15, 23, 42, 0.35);
+            position: relative;
+            transform: translateY(30px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h3 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(99, 102, 241, 0.1);
+            color: #4c1d95;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .close-modal:hover {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-control, .form-select {
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            font-size: 1em;
+            transition: border 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            outline: none;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95em;
+            color: #374151;
+        }
+
+        .secondary-btn {
+            padding: 12px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            background: transparent;
+            color: #2563eb;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .secondary-btn:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <i class="fas fa-rocket header-icon"></i>
+                        <div>
+                            <h1>Microservice Health Dashboard</h1>
+                            <p>Real-time monitoring of microservices and web applications</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-group">
+                    <button type="button" class="refresh-btn" id="refreshBtn" title="Refresh health status">
+                        <i class="fas fa-sync-alt" id="refreshIcon"></i> 
+                        <span id="refreshText">Refresh</span>
+                    </button>
+                    <button type="button" class="primary-btn" id="openModalBtn">
+                        <i class="fas fa-plus-circle"></i> Add Application
+                    </button>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <div class="auto-refresh">
+                        <i class="fas fa-clock"></i> Last updated: 
+                        <span th:text="${#temporals.format(lastUpdate, 'yyyy-MM-dd HH:mm:ss')}"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div th:if="${successMessage != null}" class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <span th:text="${successMessage}"></span>
+        </div>
+        <div th:if="${errorMessage != null}" class="alert alert-error">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span th:text="${errorMessage}"></span>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card total">
+                <div class="stat-card-header">
+                    <h3><i class="fas fa-server"></i> Total Services</h3>
+                    <i class="fas fa-chart-line stat-card-icon"></i>
+                </div>
+                <div class="value" th:text="${totalServices}">0</div>
+            </div>
+            <div class="stat-card up">
+                <div class="stat-card-header">
+                    <h3><i class="fas fa-check-circle"></i> Services Up</h3>
+                    <i class="fas fa-arrow-up stat-card-icon"></i>
+                </div>
+                <div class="value" th:text="${upCount}">0</div>
+            </div>
+            <div class="stat-card down">
+                <div class="stat-card-header">
+                    <h3><i class="fas fa-exclamation-circle"></i> Services Down</h3>
+                    <i class="fas fa-arrow-down stat-card-icon"></i>
+                </div>
+                <div class="value" th:text="${downCount}">0</div>
+            </div>
+        </div>
+
+        <div class="services-table">
+            <div class="services-table-header">
+                <h2>
+                    <i class="fas fa-list-alt"></i>
+                    Service Status
+                </h2>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-tag"></i> Service Name</th>
+                            <th><i class="fas fa-link"></i> URL</th>
+                            <th><i class="fas fa-heartbeat"></i> Status</th>
+                            <th><i class="fas fa-tachometer-alt"></i> Response Time</th>
+                            <th><i class="fas fa-clock"></i> Last Checked</th>
+                            <th><i class="fas fa-exclamation-triangle"></i> Last Down</th>
+                            <th><i class="fas fa-bug"></i> Error Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:if="${services.isEmpty()}">
+                            <td colspan="7" class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p>No services configured yet</p>
+                            </td>
+                        </tr>
+                        <tr th:each="service : ${services}">
+                            <td><strong class="service-name" th:text="${service.name}">Service Name</strong></td>
+                            <td>
+                                <a th:href="${service.url}" th:text="${service.url}" target="_blank" class="service-url">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                            </td>
+                            <td>
+                                <span class="status-badge" 
+                                      th:classappend="${service.status.name() == 'UP' ? 'up' : (service.status.name() == 'DOWN' ? 'down' : 'unknown')}">
+                                    <i class="fas" 
+                                       th:classappend="${service.status.name() == 'UP' ? 'fa-check-circle status-icon' : (service.status.name() == 'DOWN' ? 'fa-times-circle status-icon' : 'fa-question-circle status-icon')}"></i>
+                                    <span th:text="${service.status.name()}">UNKNOWN</span>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="response-time" th:text="${service.responseTime + ' ms'}">-</span>
+                            </td>
+                            <td th:text="${service.lastChecked != null ? #temporals.format(service.lastChecked, 'yyyy-MM-dd HH:mm:ss') : 'N/A'}">-</td>
+                            <td th:text="${service.lastDown != null ? #temporals.format(service.lastDown, 'yyyy-MM-dd HH:mm:ss') : 'N/A'}">-</td>
+                            <td>
+                                <span th:if="${service.errorMessage != null}" 
+                                      class="error-message" 
+                                      th:text="${service.errorMessage}">-</span>
+                                <span th:unless="${service.errorMessage != null}">-</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="serviceModal">
+            <div class="modal">
+                <button class="close-modal" id="closeModalBtn">&times;</button>
+                <h3><i class="fas fa-plug"></i> Add New Application</h3>
+                <form th:action="@{/services}" th:object="${serviceRequest}" method="post">
+                    <div class="form-group">
+                        <label for="name">Service Name</label>
+                        <input id="name" type="text" class="form-control" placeholder="e.g. Payments API" th:field="*{name}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="url">Service URL</label>
+                        <input id="url" type="url" class="form-control" placeholder="https://service.company.com" th:field="*{url}" required>
+                        <small style="color: #6b7280; font-size: 0.85em; margin-top: 4px; display: block;">
+                            Works with APIs, web applications, and microservices. Health check will auto-detect the endpoint.
+                        </small>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input id="enabled" type="checkbox" th:field="*{enabled}">
+                        <label for="enabled">Enable monitoring immediately</label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="secondary-btn" id="modalCancelBtn">Cancel</button>
+                        <button type="submit" class="primary-btn">Save Application</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>
+                <i class="fas fa-sync-alt"></i>
+                Auto-refreshing every 5 minutes
+                <span class="refresh-indicator">
+                    <div class="spinner"></div>
+                </span>
+                | Spring Boot Health Dashboard
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Animate counters
+        function animateCounter(element, target) {
+            const duration = 2000;
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    element.textContent = target;
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.floor(current);
+                }
+            }, 16);
+        }
+
+        // Initialize counter animations and modal
+        function initModal() {
+            const modal = document.getElementById('serviceModal');
+            const openModalBtn = document.getElementById('openModalBtn');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+
+            function openModal(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (modal) {
+                    modal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+
+            function closeModal(e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (modal) {
+                    modal.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            }
+
+            if (openModalBtn) {
+                openModalBtn.addEventListener('click', openModal);
+                openModalBtn.addEventListener('touchstart', openModal);
+            }
+
+            if (closeModalBtn) {
+                closeModalBtn.addEventListener('click', closeModal);
+                closeModalBtn.addEventListener('touchstart', closeModal);
+            }
+
+            if (modalCancelBtn) {
+                modalCancelBtn.addEventListener('click', closeModal);
+                modalCancelBtn.addEventListener('touchstart', closeModal);
+            }
+
+            if (modal) {
+                modal.addEventListener('click', function(event) {
+                    if (event.target === modal) {
+                        closeModal(event);
+                    }
+                });
+            }
+
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && modal && modal.classList.contains('active')) {
+                    closeModal();
+                }
+            });
+        }
+
+        // Refresh button functionality
+        function initRefreshButton() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+            const refreshText = document.getElementById('refreshText');
+
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (refreshBtn.disabled) return;
+
+                    // Disable button and show loading state
+                    refreshBtn.disabled = true;
+                    refreshIcon.classList.remove('fa-sync-alt');
+                    refreshIcon.classList.add('spinner-icon');
+                    refreshText.textContent = 'Refreshing...';
+
+                    try {
+                        const response = await fetch('/refresh', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (response.ok) {
+                            // Reload page after successful refresh
+                            setTimeout(() => {
+                                location.reload();
+                            }, 500);
+                        } else {
+                            const errorText = await response.text();
+                            alert('Refresh failed: ' + errorText);
+                            // Reset button state
+                            refreshBtn.disabled = false;
+                            refreshIcon.classList.remove('spinner-icon');
+                            refreshIcon.classList.add('fa-sync-alt');
+                            refreshText.textContent = 'Refresh';
+                        }
+                    } catch (error) {
+                        console.error('Refresh error:', error);
+                        alert('Error refreshing: ' + error.message);
+                        // Reset button state
+                        refreshBtn.disabled = false;
+                        refreshIcon.classList.remove('spinner-icon');
+                        refreshIcon.classList.add('fa-sync-alt');
+                        refreshText.textContent = 'Refresh';
+                    }
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const totalEl = document.querySelector('.stat-card.total .value');
+            const upEl = document.querySelector('.stat-card.up .value');
+            const downEl = document.querySelector('.stat-card.down .value');
+
+            if (totalEl) animateCounter(totalEl, parseInt(totalEl.textContent) || 0);
+            if (upEl) animateCounter(upEl, parseInt(upEl.textContent) || 0);
+            if (downEl) animateCounter(downEl, parseInt(downEl.textContent) || 0);
+
+            initModal();
+            initRefreshButton();
+        });
+
+        // Also initialize if DOM is already loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                initModal();
+                initRefreshButton();
+            });
+        } else {
+            initModal();
+            initRefreshButton();
+        }
+
+        // Auto-refresh page every 5 minutes
+        setTimeout(function() {
+            location.reload();
+        }, 300000);
+
+        // Add smooth scroll behavior
+        document.documentElement.style.scrollBehavior = 'smooth';
+    </script>
+</body>
+</html>
